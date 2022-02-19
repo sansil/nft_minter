@@ -10,9 +10,12 @@ import {Base64} from "./libraries/Base64.sol";
 contract MyEpicNFT is ERC721URIStorage {
     using Counters for Counters.Counter;
     Counters.Counter private _tokenIds;
+    uint8 max_mints = 5;
 
-    string baseSvg =
-        "<svg xmlns='http://www.w3.org/2000/svg' preserveAspectRatio='xMinYMin meet' viewBox='0 0 350 350'><style>.base { fill: white; font-family: serif; font-size: 24px; }</style><rect width='100%' height='100%' fill='black' /><text x='50%' y='50%' class='base' dominant-baseline='middle' text-anchor='middle'>";
+    string svgPartOne =
+        "<svg xmlns='http://www.w3.org/2000/svg' preserveAspectRatio='xMinYMin meet' viewBox='0 0 350 350'><style>.base { fill: white; font-family: serif; font-size: 24px; }</style><rect width='100%' height='100%' fill='";
+    string svgPartTwo =
+        "'/><text x='50%' y='50%' class='base' dominant-baseline='middle' text-anchor='middle'>";
 
     string[] firstWords = [
         "Seiya",
@@ -66,10 +69,21 @@ contract MyEpicNFT is ERC721URIStorage {
         "Indigo"
     ];
 
+    string[] colors = ["red", "#08C2A8", "black", "yellow", "blue", "green"];
+
     event NewEpicNFTMinted(address sender, uint256 tokenId);
 
     constructor() ERC721("SquareNFT", "SQUARE") {
         console.log("This is my NFT contract. Woah!");
+    }
+
+    modifier canMint() {
+        require(_tokenIds.current() < max_mints);
+        _;
+    }
+
+    function nftsLeft() public view returns (uint256) {
+        return max_mints - _tokenIds.current();
     }
 
     function pickRandomFirstWord(uint256 tokenId)
@@ -108,11 +122,23 @@ contract MyEpicNFT is ERC721URIStorage {
         return thirdWords[rand];
     }
 
+    function pickRandomColor(uint256 tokenId)
+        public
+        view
+        returns (string memory)
+    {
+        uint256 rand = random(
+            string(abi.encodePacked("COLOR", Strings.toString(tokenId)))
+        );
+        rand = rand % colors.length;
+        return colors[rand];
+    }
+
     function random(string memory input) internal pure returns (uint256) {
         return uint256(keccak256(abi.encodePacked(input)));
     }
 
-    function makeAnEpicNFT() public {
+    function makeAnEpicNFT() public canMint {
         uint256 newItemId = _tokenIds.current();
 
         string memory first = pickRandomFirstWord(newItemId);
@@ -122,8 +148,15 @@ contract MyEpicNFT is ERC721URIStorage {
             abi.encodePacked(first, second, third)
         );
 
+        string memory randomColor = pickRandomColor(newItemId);
         string memory finalSvg = string(
-            abi.encodePacked(baseSvg, combinedWord, "</text></svg>")
+            abi.encodePacked(
+                svgPartOne,
+                randomColor,
+                svgPartTwo,
+                combinedWord,
+                "</text></svg>"
+            )
         );
 
         // Get all the JSON metadata in place and base64 encode it.
